@@ -1,0 +1,8 @@
+Binary representation of calendar. Only text output is available at the moment.
+
+ToDo:
+
+  * Graphical representation
+  * Holidays
+
+Inspired by http://habrahabr.ru/blogs/design/135962/
