@@ -3,9 +3,33 @@
 import argparse
 import datetime
 
+class SVGOutput:
+	def draw_calendar(self, calendar):
+		box_size = 15
+		between_months = 20
+		border_size = 20
+		width = calendar.get_month_count() * calendar.get_bit_count() * box_size + (calendar.get_month_count() - 1) * between_months + border_size * 2
+		height = calendar.get_day_count() * box_size + border_size * 2
+		print '<svg width="%dpx" height="%dpx" xmlns="http://www.w3.org/2000/svg" version="1.1">' % (width, height)
+		for month in range(calendar.get_month_count()):
+			for bit in reversed(range(calendar.get_bit_count())):
+				x = border_size + (month * calendar.get_bit_count() + calendar.get_bit_count() - bit - 1) * box_size + month * between_months
+				for day in range(calendar.get_day_count()):
+					y = border_size + day * box_size
+					if calendar.get_bit(month, day, bit):
+						day_type = calendar.get_day_type(month, day)
+						style = ""
+						if day_type == DayType.WORKDAY:
+							style = "fill:green"
+						elif day_type == DayType.HOLIDAY:
+							style = "fill:yellow"
+						else:
+							style = "fill:red"
+						style += ";stroke:black;stroke-width:0.1"
+						print '<rect x="%d" y="%d" width="%d" height="%d" style="%s" />' % (x, y, box_size, box_size, style)
+		print '</svg>'
+
 class ConsoleOutput:
-	def __init__(self):
-		self.boxes = {}
 	def draw_calendar(self, calendar):
 		for day in range(calendar.get_day_count()):
 			for month in range(calendar.get_month_count()):
@@ -14,6 +38,8 @@ class ConsoleOutput:
 						day_type = calendar.get_day_type(month, day)
 						if day_type == DayType.WORKDAY:
 							print "#",
+						elif day_type == DayType.HOLIDAY:
+							print "!",
 						else:
 							print ".",
 					else:
@@ -70,11 +96,16 @@ class Day:
 		return bin(self.number)[2:]
 
 class BinaryCalendar:
-	def render_calendar(self, year):
-		calendar = self.make_calender(year)
-		renderer = ConsoleOutput()
+	def render_calendar(self, year, holidays, renderer):
+		calendar = self.make_calender(year, self.parse_holidays(holidays))
 		renderer.draw_calendar(calendar)
-	def make_calender(self, year):
+	def parse_holidays(self, holidays):
+		holiday_map = {}
+		for holiday_str in holidays:
+			(month, ignore, day) = holiday_str.partition('-')
+			holiday_map[(int(month),int(day))] = 1
+		return holiday_map
+	def make_calender(self, year, holidays):
 		current_date = datetime.date(year, 1, 1)
 		delta = datetime.timedelta(1)
 		months = []
@@ -89,7 +120,9 @@ class BinaryCalendar:
 				months.append(Month(prev_month, current_month, self._shift_weekday(current_month_offset, first_day_offset)))
 				current_month = []
 				current_month_offset = current_date.weekday()
-			if current_date.weekday() in [5, 6]: ## Saturday, Sunday
+			if (current_date.month, current_date.day) in holidays:
+				day_type = DayType.HOLIDAY
+			elif current_date.weekday() in [5, 6]: ## Saturday, Sunday
 				day_type = DayType.WEEKEND
 			else:
 				day_type = DayType.WORKDAY
@@ -105,6 +138,11 @@ class BinaryCalendar:
 if __name__ == "__main__":
 	arg_parser = argparse.ArgumentParser(description = 'Generate banary calandar in SVG format')
 	arg_parser.add_argument('year', type=int)
+	arg_parser.add_argument('--output', choices = ['text', 'svg'], default = 'text', nargs = '?')
+	arg_parser.add_argument('--holiday', nargs = '*', help = 'holiday date in mm-dd format', default = [])
 	args = arg_parser.parse_args()
 	binary_calendar = BinaryCalendar()
-	binary_calendar.render_calendar(args.year)
+	output = ConsoleOutput()
+	if (args.output == 'svg'):
+		output = SVGOutput()
+	binary_calendar.render_calendar(args.year, args.holiday, output)
