@@ -4,6 +4,9 @@ import argparse
 import datetime
 
 class SVGOutput:
+	def __init__(self, colors):
+		self.colors = colors
+
 	def draw_calendar(self, calendar):
 		box_size = 15
 		between_months = 20
@@ -20,12 +23,12 @@ class SVGOutput:
 						day_type = calendar.get_day_type(month, day)
 						style = ""
 						if day_type == DayType.WORKDAY:
-							style = "fill:green"
+							style = "fill:%s" % self.colors['workday']
 						elif day_type == DayType.HOLIDAY:
-							style = "fill:yellow"
+							style = "fill:%s" % self.colors['holiday']
 						else:
-							style = "fill:red"
-						style += ";stroke:black;stroke-width:0.1"
+							style = "fill:%s" % self.colors['weekend']
+						style += ";stroke:%s;stroke-width:0.1" % self.colors['line']
 						print '<rect x="%d" y="%d" width="%d" height="%d" style="%s" />' % (x, y, box_size, box_size, style)
 		print '</svg>'
 
@@ -138,11 +141,13 @@ class BinaryCalendar:
 if __name__ == "__main__":
 	arg_parser = argparse.ArgumentParser(description = 'Generate banary calandar in SVG format')
 	arg_parser.add_argument('year', type=int)
-	arg_parser.add_argument('--output', choices = ['text', 'svg'], default = 'text', nargs = '?')
+	arg_parser.add_argument('--output', choices = ['text', 'svg', 'svg-bw'], default = 'text', nargs = '?')
 	arg_parser.add_argument('--holiday', nargs = '*', help = 'holiday date in mm-dd format', default = [])
 	args = arg_parser.parse_args()
 	binary_calendar = BinaryCalendar()
 	output = ConsoleOutput()
-	if (args.output == 'svg'):
-		output = SVGOutput()
+	if args.output == 'svg':
+		output = SVGOutput({'workday': 'green', 'holiday': 'yellow', 'weekend': 'red', 'line': 'black'})
+	if args.output == 'svg-bw':
+		output = SVGOutput({'workday': '#ddd', 'holiday': '#333', 'weekend': '#aaa', 'line': 'black'})
 	binary_calendar.render_calendar(args.year, args.holiday, output)
